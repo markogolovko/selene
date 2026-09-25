@@ -73,6 +73,10 @@ dt { color: #8590a0; } dd { margin: 0; color: #d4dae4; text-align: right; font-v
 .speed-control > div:first-child { display: flex; justify-content: space-between; margin-bottom: 13px; align-items: center; }
 .speed-control #speed-label { font-size: 12px; letter-spacing: 0.09em; color: #8792a3; }
 .speed-control output { font-size: 12px; color: #d1dac3; font-variant-numeric: tabular-nums; }
+.speed-slider-row { display: flex; align-items: center; gap: 9px; }
+.speed-slider-row > [data-slot="slider"] { flex: 1; min-width: 0; }
+.time-direction-button { display: grid; place-items: center; width: 26px; height: 26px; flex: 0 0 26px; padding: 0; border: 1px solid #ffffff30; border-radius: 6px; color: #aeb8c7; background: #ffffff08; }
+.time-direction-button:hover, .time-direction-button.reversed { color: #dce7c9; border-color: #c4d5a4; background: #c4d5a420; }
 .simulation-time-trigger { display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; column-gap: 10px; min-width: 196px; padding: 6px 10px; border: 1px solid #ffffff18; border-radius: 7px; background: #ffffff05; color: #d1dac3; text-align: left; }
 .simulation-time-trigger > svg { grid-row: 1 / 3; align-self: center; color: #9fac8a; }
 .simulation-time-trigger > span { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
@@ -111,11 +115,11 @@ dt { color: #8590a0; } dd { margin: 0; color: #d4dae4; text-align: right; font-v
 .calendar-legend .solar-eclipse, .selected-date-events .solar-eclipse { background: #ef8a55; }
 .calendar-legend .lunar-eclipse, .selected-date-events .lunar-eclipse { background: #a996e8; }
 .calendar-legend .asteroid-flyby, .selected-date-events .asteroid-flyby { background: #76c9e8; }
-.selected-date-events { display: grid; align-content: start; gap: 6px; height: 52px; overflow-y: auto; padding: 8px 5px 2px; }
+.selected-date-events { display: grid; align-content: start; gap: 6px; min-height: 76px; max-height: 118px; overflow-y: auto; padding: 8px 5px; }
 .selected-date-event { display: grid; grid-template-columns: 1fr; align-items: stretch; overflow: hidden; border-radius: 5px; background: #ffffff05; }
 .selected-date-events button { display: flex; align-items: center; gap: 7px; border: 0; color: #d9dfd0; font-size: 11px; }
 .selected-date-events button:hover { background: #ffffff0c; }
-.event-time-button { min-width: 0; flex-wrap: wrap; padding: 6px; background: transparent; text-align: left; }
+.event-time-button { min-width: 0; flex-wrap: wrap; padding: 8px 12px; background: transparent; text-align: left; }
 .selected-date-events time { margin-left: auto; color: #929cad; font-variant-numeric: tabular-nums; }
 .simulation-time-input { display: flex; align-items: center; justify-content: space-between; padding: 8px 5px 1px; color: #8994a4; font-size: 11px; letter-spacing: 0.1em; }
 .simulation-time-input input { width: 126px; padding: 5px 7px; border: 1px solid #ffffff1f; border-radius: 5px; background: #ffffff08; color: #dce4d2; font: inherit; font-size: 12px; font-variant-numeric: tabular-nums; color-scheme: dark; }

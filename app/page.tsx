@@ -20,6 +20,7 @@ export default function Home() {
   const [selected, setSelected] = useState<BodyName | null>(null);
   const [selectedLandmark, setSelectedLandmark] = useState<LandmarkSelection>(null);
   const [paused, setPaused] = useState(false);
+  const [reverseTime, setReverseTime] = useState(false);
   const [speedIndex, setSpeedIndex] = useState(0);
   const [simulationNow, setSimulationNow] = useState(() => new Date(0));
   const [moonPhase, setMoonPhase] = useState({ illumination: 0, name: 'New Moon' });
@@ -33,7 +34,7 @@ export default function Home() {
   const [observerTarget, setObserverTarget] = useState<SkyTarget>('Sun');
   const [error, setError] = useState('');
   const [ready, setReady] = useState(false);
-  const speed = SPEED_STOPS[speedIndex].daysPerSecond;
+  const speed = SPEED_STOPS[speedIndex].daysPerSecond * (reverseTime ? -1 : 1);
 
   useEffect(() => {
     if (!host.current) return;
@@ -108,6 +109,7 @@ export default function Home() {
     const { date, location } = event.observation;
     setSimulationDate(date);
     setPaused(false);
+    setReverseTime(false);
     setSpeedIndex(1);
     setObserverActive(true);
     setObserverFreeLook(false);
@@ -130,6 +132,7 @@ export default function Home() {
       stopSkyView();
       setRealScale(false);
       setPaused(false);
+      setReverseTime(false);
       setSpeedIndex(2);
       setOrbits(true);
       setLabels(true);
@@ -179,7 +182,7 @@ export default function Home() {
       {error && <div className="scene-message" role="alert">{error}</div>}
       {!ready && !error && <output className="scene-message">Preparing your solar system…</output>}
       <footer className="bottom-area">
-        <SimulationControls paused={paused} speedIndex={speedIndex} setPaused={setPaused} setSpeedIndex={setSpeedIndex} simulationNow={simulationNow} setSimulationDate={setSimulationDate} onEventView={viewCalendarEvent} ready={ready} orbits={orbits} labels={labels} realScale={realScale} observerActive={observerActive} setOrbits={setOrbits} setLabels={setLabels} setRealScale={setRealScale} reset={() => { const now = new Date(); focus(null); setPaused(false); setSpeedIndex(0); setSimulationNow(now); setOrbits(true); setLabels(true); setRealScale(false); engine.current?.reset(); }} />
+        <SimulationControls paused={paused} reverseTime={reverseTime} setReverseTime={setReverseTime} speedIndex={speedIndex} setPaused={setPaused} setSpeedIndex={setSpeedIndex} simulationNow={simulationNow} setSimulationDate={setSimulationDate} onEventView={viewCalendarEvent} ready={ready} orbits={orbits} labels={labels} realScale={realScale} observerActive={observerActive} setOrbits={setOrbits} setLabels={setLabels} setRealScale={setRealScale} reset={() => { const now = new Date(); focus(null); setPaused(false); setReverseTime(false); setSpeedIndex(0); setSimulationNow(now); setOrbits(true); setLabels(true); setRealScale(false); engine.current?.reset(); }} />
         <div className="footer-meta"><span>DRAG TO ORBIT <b>·</b> SCROLL TO ZOOM <b>·</b> CLICK TO EXPLORE</span><span>WEBGL <i /> LIVE SIMULATION</span></div>
       </footer>
     </main>
