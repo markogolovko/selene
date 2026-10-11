@@ -3,31 +3,29 @@ import * as THREE from 'three';
 import { GeoMoon, RotateVector, Rotation_EQJ_ECL } from 'astronomy-engine';
 import { apophisGeocentricPosition } from '../lib/astronomy/apophis';
 import { createApophisSceneMapper } from '../lib/solar-system/apophis-path';
-import { apophisEncounterDisplayBlend } from '../lib/solar-system/apophis-display';
 import { findBody } from '../lib/solar-data';
 import { dateToSimulationDays } from '../lib/astronomy/time';
-import { createMoonOrbitMapper, moonDisplayDistance, writeMoonOrbitPath } from '../lib/solar-system/moon-orbit';
+import { createMoonOrbitMapper, writeMoonOrbitPath } from '../lib/solar-system/moon-orbit';
 import { SCENE_AU, initialOrbitalPhase, orbitalAngle, orbitalPosition, orbitRadius } from '../lib/solar-system/orbit-math';
 
-function orbitAt(date: Date, realScale: boolean, displayBlend = 1) {
+function orbitAt(date: Date, realScale: boolean) {
   const earth = findBody('Earth');
   const days = dateToSimulationDays(date);
   const earthPosition = orbitalPosition(earth, orbitalAngle(earth, days, initialOrbitalPhase(earth, 3)), realScale);
   const mapper = createMoonOrbitMapper(earthPosition);
   const attribute = new THREE.Float32BufferAttribute(256 * 3, 3);
   const compressedRadius = realScale ? null : orbitRadius(findBody('Moon'), false);
-  writeMoonOrbitPath(date, mapper, compressedRadius, attribute, displayBlend);
+  writeMoonOrbitPath(date, mapper, compressedRadius, attribute);
   const moon = mapper.moonPosition(date, new THREE.Vector3()).sub(earthPosition);
-  if (compressedRadius !== null) moon.setLength(moonDisplayDistance(moon.length(), compressedRadius, displayBlend));
+  if (compressedRadius !== null) moon.setLength(compressedRadius);
   return { attribute, moon };
 }
 
 describe('Moon orbit path', () => {
-  it('keeps the Moon on its path throughout the encounter scale transition', () => {
-    for (const separation of [0.004, 1.3, 1.6, 1.9, 10]) {
-      const { attribute, moon } = orbitAt(new Date('2029-04-13T21:46:00Z'), false, apophisEncounterDisplayBlend(separation));
-      expect(new THREE.Vector3().fromBufferAttribute(attribute, 128).distanceTo(moon)).toBeLessThan(1e-6);
-    }
+  it('keeps the Moon on its regular display orbit during the Apophis flyby', () => {
+    const { attribute, moon } = orbitAt(new Date('2029-04-13T21:46:00Z'), false);
+    expect(new THREE.Vector3().fromBufferAttribute(attribute, 128).distanceTo(moon)).toBeLessThan(1e-6);
+    expect(moon.length()).toBeCloseTo(orbitRadius(findBody('Moon'), false));
   });
 
   it('preserves physical Moon–Apophis geometry and places the flyby inside lunar distance', () => {
@@ -45,7 +43,7 @@ describe('Moon orbit path', () => {
       apophisGeocentricPosition(date, physicalAsteroid);
       expect(moon.angleTo(asteroid)).toBeCloseTo(physicalMoon.angleTo(physicalAsteroid), 10);
       expect(moon.distanceTo(asteroid)).toBeCloseTo(physicalMoon.distanceTo(physicalAsteroid) * SCENE_AU, 10);
-      expect(orbitAt(date, false, 0).moon.length()).toBeCloseTo(physicalMoon.length() * SCENE_AU, 10);
+      expect(orbitAt(date, false).moon.length()).toBeCloseTo(orbitRadius(findBody('Moon'), false));
       if (iso.startsWith('2029-04-13')) expect(moon.length() / asteroid.length()).toBeGreaterThan(9);
     }
   });

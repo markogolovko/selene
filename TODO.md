@@ -25,5 +25,4 @@
 - [ ] Add place to add comments with new features requests and bugs
 - [ ] Refactor css
 - [ ] Add info about number coincidences with planets and moons
-
-what is lunar eclipse
+- [ ] add grouping of left panel of objects

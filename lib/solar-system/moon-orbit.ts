@@ -44,18 +44,14 @@ export function createMoonOrbitMapper(earthPosition: THREE.Vector3): MoonOrbitMa
   };
 }
 
-export function moonDisplayDistance(physicalDistance: number, compressedRadius: number, displayBlend: number): number {
-  return physicalDistance + (compressedRadius - physicalDistance) * displayBlend;
-}
-
-export function writeMoonOrbitPath(date: Date, mapper: MoonOrbitMapper, compressedRadius: number | null, attribute: THREE.BufferAttribute, displayBlend = 1): void {
+export function writeMoonOrbitPath(date: Date, mapper: MoonOrbitMapper, compressedRadius: number | null, attribute: THREE.BufferAttribute): void {
   const point = new THREE.Vector3();
   const count = attribute.count;
   mapper.updateBasis(date);
   for (let index = 0; index < count; index++) {
     const sampleDate = new Date(date.getTime() + (index / count - 0.5) * SIDEREAL_MONTH_DAYS * DAY_MS);
     mapper.moonOffset(sampleDate, point);
-    if (compressedRadius !== null) point.setLength(moonDisplayDistance(point.length(), compressedRadius, displayBlend));
+    if (compressedRadius !== null) point.setLength(compressedRadius);
     attribute.setXYZ(index, point.x, point.y, point.z);
   }
   attribute.needsUpdate = true;

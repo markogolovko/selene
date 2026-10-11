@@ -5,7 +5,7 @@ import { apophisGeocentricPosition } from '../lib/astronomy/apophis';
 import { dateToSimulationDays } from '../lib/astronomy/time';
 import { findBody } from '../lib/solar-data';
 import { APOPHIS_PATH_POINT_COUNT, createApophisSceneMapper, usesFixedApophisFlybyPath } from '../lib/solar-system/apophis-path';
-import { apophisEncounterBodyRadius } from '../lib/solar-system/apophis-display';
+import { apophisVisibleAtScale } from '../lib/solar-system/apophis-display';
 import { KILOMETERS_PER_AU, SCENE_AU, bodyRadius, initialOrbitalPhase, orbitalAngle, orbitalPosition } from '../lib/solar-system/orbit-math';
 
 const closest = new Date('2029-04-13T21:46:00Z');
@@ -200,21 +200,14 @@ describe('Apophis 2029 Earth flyby', () => {
       const separation = position.distanceTo(earth);
       expect(separation).toBeCloseTo(physical.length() * SCENE_AU, 10);
       if (separation < minimum) { minimum = separation; minimumTime = time; }
-      const radii = apophisEncounterBodyRadius(findBody('Earth'), separation, false)
-        + apophisEncounterBodyRadius(findBody('Apophis'), separation, false);
-      expect(separation).toBeGreaterThan(radii);
     }
     expect(Math.abs(minimumTime - closest.getTime())).toBeLessThan(5 * 60_000);
     expect(minimum * KILOMETERS_PER_AU / SCENE_AU).toBeCloseTo(38_011, -2);
   });
 
-  it('uses physical Earth and Moon sizes near the encounter and restores normal sizes far away', () => {
-    const earth = findBody('Earth'), moon = findBody('Moon'), apophis = findBody('Apophis');
-    expect(apophisEncounterBodyRadius(earth, 0.004, false)).toBe(bodyRadius(earth, true));
-    expect(apophisEncounterBodyRadius(moon, 0.004, false)).toBe(bodyRadius(moon, true));
-    for (const body of [earth, moon, apophis]) {
-      expect(apophisEncounterBodyRadius(body, 10, false)).toBeCloseTo(body.radius);
-      expect(apophisEncounterBodyRadius(body, 0.004, true)).toBe(bodyRadius(body, true));
+  it('shows Apophis only in true-scale mode', () => {
+    for (const realScale of [false, true]) {
+      expect(apophisVisibleAtScale(realScale)).toBe(realScale);
     }
   });
 });

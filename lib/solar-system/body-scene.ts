@@ -6,8 +6,7 @@ import { createEarthGrid, createEarthLandmarks } from './earth-overlays';
 import { loadSrgbTexture, type ResourceRegistry } from './resources';
 import type { EarthObserver, LandmarkSelection } from './types';
 import { lunarEclipseStrength, type LunarCoordinates } from '../astronomy/moon';
-import { apophisEncounterBodyRadius, apophisEncounterDisplayBlend } from './apophis-display';
-import { moonDisplayDistance } from './moon-orbit';
+import { apophisVisibleAtScale } from './apophis-display';
 import { APOPHIS_PATH_POINT_COUNT } from './apophis-path';
 import { orbitPathNeedsRebase, writeKeplerOrbitPath } from './orbit-path';
 
@@ -200,8 +199,6 @@ export function updateBodyScene(bodyScene: BodyScene, frame: {
   const { objects, objectByName, earth, moon } = bodyScene;
   const selectedBody = selected ? objectByName.get(selected)?.body : undefined;
   let selectedSystem = selectedBody && isSatellite(selectedBody) ? selectedBody.parent as BodyName : selected;
-  let apophisUsesEphemeris = false;
-  let displayBlend = 1;
   objects.forEach(({ body, group, mesh, ring, phase, label }) => {
     const angle = orbitalAngle(body, days, phase);
     if (body.name === 'Moon') {
@@ -209,7 +206,6 @@ export function updateBodyScene(bodyScene: BodyScene, frame: {
       exactMoonPosition(group.position);
       mesh.rotation.y = -phaseAngle;
     } else if (body.name === 'Apophis' && apophisPosition(group.position)) {
-      apophisUsesEphemeris = true;
       mesh.rotation.y = days / body.rotationPeriod * Math.PI * 2;
     } else {
       if (body.distance) {
@@ -224,23 +220,15 @@ export function updateBodyScene(bodyScene: BodyScene, frame: {
       mesh.rotation.y = days / body.rotationPeriod * Math.PI * 2;
     }
     mesh.scale.setScalar(bodyRadius(body, realScale));
-    mesh.visible = !earthObserver;
+    mesh.visible = !earthObserver && (body.name !== 'Apophis' || apophisVisibleAtScale(realScale));
     ring?.scale.setScalar(bodyRadius(body, realScale) / body.radius);
     if (ring) ring.visible = !earthObserver;
     label.classList.toggle('selected', earthObserver ? earthObserver.target === body.name : selected === body.name);
   });
-  if (apophisUsesEphemeris && !earthObserver) {
-    const apophis = objectByName.get('Apophis')!;
-    const separation = earth.group.position.distanceTo(apophis.group.position);
-    displayBlend = apophisEncounterDisplayBlend(separation);
-    earth.mesh.scale.setScalar(apophisEncounterBodyRadius(earth.body, separation, realScale));
-    moon.mesh.scale.setScalar(apophisEncounterBodyRadius(moon.body, separation, realScale));
-    apophis.mesh.scale.setScalar(apophisEncounterBodyRadius(apophis.body, separation, realScale));
-    if (selected === 'Apophis' && displayBlend < 1) selectedSystem = 'Earth';
-  }
+  if (selected === 'Apophis' && !objectByName.get('Apophis')!.mesh.visible) selectedSystem = 'Earth';
   if (!realScale) {
     const offset = moon.group.position.sub(earth.group.position);
-    offset.setLength(moonDisplayDistance(offset.length(), orbitRadius(moon.body, false), displayBlend)).add(earth.group.position);
+    offset.setLength(orbitRadius(moon.body, false)).add(earth.group.position);
   }
   lunarShadowUniforms.uEarthPosition.value.copy(earth.group.position);
   lunarShadowUniforms.uEarthRadius.value = earth.mesh.scale.x;
@@ -269,7 +257,7 @@ export function updateBodyLabels(bodyScene: BodyScene, frame: {
     projected.project(camera);
     const inSelectedSystem = !isSatellite(body) || selectedSystem === body.parent;
     const visibleInObserver = Boolean(earthObserver && observerMarker?.visible && !observerMarker.userData.eclipseHidden);
-    const visible = labels && (visibleInObserver || (!earthObserver && inSelectedSystem)) && projected.z > -1 && projected.z < 1 && Math.abs(projected.x) < 1 && Math.abs(projected.y) < 1;
+    const visible = labels && (visibleInObserver || (!earthObserver && mesh.visible && inSelectedSystem)) && projected.z > -1 && projected.z < 1 && Math.abs(projected.x) < 1 && Math.abs(projected.y) < 1;
     label.classList.toggle('below-horizon', Boolean(earthObserver && observerMarker && observerMarker.userData.aboveHorizon === false));
     label.hidden = !visible;
     if (visible) {

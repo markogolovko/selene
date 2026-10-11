@@ -35,6 +35,24 @@ export default function Home() {
   const [error, setError] = useState('');
   const [ready, setReady] = useState(false);
   const speed = SPEED_STOPS[speedIndex].daysPerSecond * (reverseTime ? -1 : 1);
+  const engineOptions = useRef({ paused, speed, orbits, labels, realScale });
+  const stopSkyView = useCallback(() => {
+    engine.current?.setEarthObserver(null);
+    setObserverActive(false);
+    setObserverFreeLook(false);
+  }, []);
+  const focus = useCallback((name: BodyName | null) => {
+    stopSkyView();
+    setSelected(name);
+    setSelectedLandmark(null);
+    if (name === 'Apophis' && !engineOptions.current.realScale) {
+      const next = { ...engineOptions.current, realScale: true };
+      engineOptions.current = next;
+      setRealScale(true);
+      engine.current?.setOptions(next);
+    }
+    engine.current?.focus(name);
+  }, [stopSkyView]);
 
   useEffect(() => {
     if (!host.current) return;
@@ -50,7 +68,11 @@ export default function Home() {
     }
     return () => { engine.current?.dispose(); engine.current = null; };
   }, []);
-  useEffect(() => { engine.current?.setOptions({ paused, speed, orbits, labels, realScale }); }, [paused, speed, orbits, labels, realScale]);
+  useEffect(() => {
+    const next = { paused, speed, orbits, labels, realScale };
+    engineOptions.current = next;
+    engine.current?.setOptions(next);
+  }, [paused, speed, orbits, labels, realScale]);
   useEffect(() => {
     const timer = window.setInterval(() => {
       const currentDate = engine.current?.getDate();
@@ -63,23 +85,8 @@ export default function Home() {
   }, []);
   useEffect(() => registerExplorerTool((name) => {
     if (!engine.current) throw new Error('The solar system is not ready.');
-    engine.current.focus(name);
-    setSelectedLandmark(null);
-    setObserverActive(false);
-    setObserverFreeLook(false);
-    flushSync(() => setSelected(name));
-  }), []);
-  const stopSkyView = useCallback(() => {
-    engine.current?.setEarthObserver(null);
-    setObserverActive(false);
-    setObserverFreeLook(false);
-  }, []);
-  const focus = (name: BodyName | null) => {
-    stopSkyView();
-    setSelected(name);
-    setSelectedLandmark(null);
-    engine.current?.focus(name);
-  };
+    flushSync(() => focus(name));
+  }), [focus]);
   const setSimulationDate = (date: Date) => {
     engine.current?.setDate(date);
     setSimulationNow(date);
@@ -130,13 +137,15 @@ export default function Home() {
     setSimulationDate(eventPlaybackDate(event));
     if (event.kind === 'asteroid-flyby') {
       stopSkyView();
-      setRealScale(false);
+      setRealScale(true);
       setPaused(false);
       setReverseTime(false);
       setSpeedIndex(2);
       setOrbits(true);
       setLabels(true);
-      engine.current?.setOptions({ paused: false, speed: SPEED_STOPS[2].daysPerSecond, orbits: true, labels: true, realScale: false });
+      const playbackOptions = { ...engineOptions.current, paused: false, speed: SPEED_STOPS[2].daysPerSecond, orbits: true, labels: true, realScale: true };
+      engineOptions.current = playbackOptions;
+      engine.current?.setOptions(playbackOptions);
       focus('Apophis');
     }
   };
@@ -178,7 +187,7 @@ export default function Home() {
         <button className="earth-shortcut" onClick={() => focus('Earth')}>Explore Earth & Moon <ArrowUpRight size={16} /></button>
       </section>
       <ObjectBrowser selected={selected} onSelect={focus} />
-      <BodyDetails selected={selected} simulationNow={simulationNow} moonPhase={moonPhase} eclipse={eclipse} observerActive={observerActive} onViewSky={viewSkyFromEarth} onFocus={focus} />
+      <BodyDetails selected={selected} simulationNow={simulationNow} realScale={realScale} moonPhase={moonPhase} eclipse={eclipse} observerActive={observerActive} onViewSky={viewSkyFromEarth} onFocus={focus} />
       {error && <div className="scene-message" role="alert">{error}</div>}
       {!ready && !error && <output className="scene-message">Preparing your solar system…</output>}
       <footer className="bottom-area">

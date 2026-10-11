@@ -46,6 +46,7 @@ export function createFocusCameraController(options: {
   let transitionStartedAt = 0;
   let transitionThreshold = 0.03;
   let focusedName: BodyName | null = null;
+  let preservedMinimumDistance: number | null = null;
 
   function focus(name: BodyName | null, preserveView = false) {
     focusedName = name;
@@ -58,11 +59,16 @@ export function createFocusCameraController(options: {
       // Earth frames the lunar system; Apophis frames the closer Earth flyby.
       if (name === 'Earth') encounterSeparation = Math.max(encounterSeparation, bodyScene.earth.group.position.distanceTo(bodyScene.moon.group.position));
     }
-    const plan = calculateFocusCameraPlan({ selected: Boolean(item), realScale: isRealScale(), radius, displayRadius: item?.body.radius ?? 0, currentDistance: camera.position.distanceTo(controls.target), homeVector: [home.x, home.y, home.z], mobile: width() < 700, encounterSeparation });
+    const currentDistance = camera.position.distanceTo(controls.target);
+    const plan = calculateFocusCameraPlan({ selected: Boolean(item), realScale: isRealScale(), radius, displayRadius: item?.body.radius ?? 0, currentDistance, homeVector: [home.x, home.y, home.z], mobile: width() < 700, encounterSeparation });
     camera.near = plan.near;
     camera.updateProjectionMatrix();
     transitionThreshold = plan.transitionThreshold;
-    controls.minDistance = plan.minDistance;
+    const preserveNear = name === 'Apophis' ? Math.max(radius * 0.08, currentDistance * 0.001, 0.000000001) : plan.near;
+    preservedMinimumDistance = preserveView
+      ? Math.min(Math.max(radius * 1.8, preserveNear * 2.5), Math.max(currentDistance * 0.5, 0.000000001))
+      : null;
+    controls.minDistance = preservedMinimumDistance ?? plan.minDistance;
     if (preserveView) {
       // Changing display scale should keep the user's orbit view and zoom.
       const target = item ? item.group.position : origin;
@@ -87,7 +93,10 @@ export function createFocusCameraController(options: {
       const viewNear = focusedName === 'Apophis' ? camera.position.distanceTo(controls.target) * 0.001 : 0;
       const near = isRealScale() || radius < item.body.radius ? Math.max(radius * 0.08, viewNear, 0.000000001) : 0.1;
       if (camera.near !== near) { camera.near = near; camera.updateProjectionMatrix(); }
-      controls.minDistance = Math.max(radius * 1.8, near * 2.5);
+      const minimumDistance = Math.max(radius * 1.8, near * 2.5);
+      controls.minDistance = preservedMinimumDistance === null
+        ? minimumDistance
+        : Math.min(minimumDistance, preservedMinimumDistance);
     }
     desired.copy(target ?? origin);
     if (transition) {
