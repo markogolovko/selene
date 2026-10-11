@@ -198,7 +198,7 @@ export function createSolarSystem(host: HTMLDivElement, onSelect: (name: BodyNam
     } else focusCamera.update(target, elapsed, now);
     paths.visible = options.orbits && !earthObserver;
     orbitLines.forEach(({ body, line }) => {
-      line.visible = options.orbits && !earthObserver && (!isSatellite(body) || selectedSystem === body.parent);
+      line.visible = options.orbits && !earthObserver && body.name !== selected && (!isSatellite(body) || selectedSystem === body.parent);
     });
     if (!observerView!.active) controls.update();
     sunGlow.quaternion.copy(camera.quaternion); renderer.render(scene, camera);
