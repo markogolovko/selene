@@ -173,6 +173,7 @@ export function createSolarSystem(host: HTMLDivElement, onSelect: (name: BodyNam
     if (!document.hidden && !options.paused) days += elapsed * options.speed;
     const earthObserver = observerView!.current;
     const selectedSystem = updateBodies();
+    if (options.orbits && !earthObserver) bodyScene.rebaseFocusedOrbitLine(selected);
     if (options.orbits && !earthObserver && (!Number.isFinite(moonOrbitDay) || Math.abs(days - moonOrbitDay) > 1 / 288)) {
       const date = simulationDaysToDate(days);
       const displayBlend = date.getTime() >= APOPHIS_EPHEMERIS_START && date.getTime() <= APOPHIS_EPHEMERIS_END
@@ -184,7 +185,7 @@ export function createSolarSystem(host: HTMLDivElement, onSelect: (name: BodyNam
     const apophisPathDate = simulationDaysToDate(days);
     const fixedApophisPath = usesFixedApophisFlybyPath(apophisPathDate);
     if (options.orbits && !earthObserver && (!Number.isFinite(apophisOrbitDay) || fixedApophisPath !== apophisOrbitFixed || (!fixedApophisPath && Math.abs(days - apophisOrbitDay) > 1 / 288))) {
-      apophisMapper.writePath(apophisPathDate, realScale, apophisOrbitLine.geometry.getAttribute('position') as THREE.BufferAttribute);
+      apophisMapper.writePath(apophisPathDate, realScale, apophisOrbitLine.geometry.getAttribute('position') as THREE.BufferAttribute, apophisOrbitLine.position);
       apophisOrbitLine.geometry.computeBoundingSphere();
       apophisOrbitDay = days;
       apophisOrbitFixed = fixedApophisPath;
@@ -218,6 +219,9 @@ export function createSolarSystem(host: HTMLDivElement, onSelect: (name: BodyNam
         if (observerView!.active) {
           camera.near = Math.max(bodyRadius(earth.body) * 0.0005, 0.000000001);
           camera.updateProjectionMatrix();
+        } else if (selected === 'Apophis') {
+          updateBodies();
+          focusCamera.focus(selected, true);
         } else {
           focus(selected);
         }

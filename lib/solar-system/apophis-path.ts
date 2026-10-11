@@ -13,20 +13,21 @@ const UP = new THREE.Vector3(0, 1, 0);
 const PATH_HALF_SPAN_DAYS = 160;
 const FLYBY_TIME = Date.parse('2029-04-13T21:46:00Z');
 const FLYBY_PATH_WINDOW_DAYS = 30;
+export const APOPHIS_PATH_POINT_COUNT = 2049;
 
 export function usesFixedApophisFlybyPath(date: Date): boolean {
   return Math.abs(date.getTime() - FLYBY_TIME) <= FLYBY_PATH_WINDOW_DAYS * DAY_MS;
 }
 
-// Keep ten-minute segments through closest approach, then widen the spacing
-// outside the encounter. A moving, date-centered path cuts the sharp turn
-// near Earth whenever the selected date drifts away from the flyby.
+// Keep roughly six-minute segments through closest approach, then distribute
+// enough samples along the surrounding months to avoid visible polygon corners.
+// The flyby trace stays fixed while simulation time passes through the encounter.
 function flybyPathOffsetDays(fraction: number): number {
   const distance = Math.abs(fraction);
   let days: number;
-  if (distance <= 0.5625) days = 0.5 * distance / 0.5625;
-  else if (distance <= 0.8125) days = 0.5 + 1.5 * (distance - 0.5625) / 0.25;
-  else days = 2 + (PATH_HALF_SPAN_DAYS - 2) * ((distance - 0.8125) / 0.1875) ** 2;
+  if (distance <= 0.125) days = 0.5 * distance / 0.125;
+  else if (distance <= 0.25) days = 0.5 + 1.5 * (distance - 0.125) / 0.125;
+  else days = 2 + (PATH_HALF_SPAN_DAYS - 2) * (distance - 0.25) / 0.75;
   return Math.sign(fraction) * days;
 }
 
@@ -56,11 +57,19 @@ export function createApophisSceneMapper() {
     return true;
   };
 
-  const writePath = (date: Date, realScale: boolean, attribute: THREE.BufferAttribute) => {
+  const writePath = (date: Date, realScale: boolean, attribute: THREE.BufferAttribute, origin?: THREE.Vector3) => {
     const flybyPath = usesFixedApophisFlybyPath(date);
     const time = flybyPath ? FLYBY_TIME : date.getTime();
     const before = Math.min(PATH_HALF_SPAN_DAYS, (time - APOPHIS_EPHEMERIS_START) / DAY_MS);
     const after = Math.min(PATH_HALF_SPAN_DAYS, (APOPHIS_EPHEMERIS_END - time) / DAY_MS);
+    if (origin) {
+      const anchorDate = new Date(time);
+      const days = dateToSimulationDays(anchorDate);
+      orbitalPosition(earth, orbitalAngle(earth, days, earthPhase), realScale, sampleEarth);
+      if (!positionAt(anchorDate, sampleEarth, origin)) {
+        orbitalPosition(apophis, orbitalAngle(apophis, days, initialOrbitalPhase(apophis, 0)), realScale, origin);
+      }
+    }
     for (let index = 0; index < attribute.count; index++) {
       if (before < 0 || after < 0) {
         orbitalPosition(apophis, index / (attribute.count - 1) * Math.PI * 2, realScale, point);
@@ -74,6 +83,9 @@ export function createApophisSceneMapper() {
         orbitalPosition(earth, orbitalAngle(earth, days, earthPhase), realScale, sampleEarth);
         positionAt(sampleDate, sampleEarth, point);
       }
+      // Keep Float32 vertices near the asteroid. Storing heliocentric coordinates
+      // directly rounds away distances larger than its physical radius.
+      if (origin) point.sub(origin);
       attribute.setXYZ(index, point.x, point.y, point.z);
     }
     attribute.needsUpdate = true;

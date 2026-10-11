@@ -4,7 +4,7 @@ import { Body, GeoVector, RotateVector, Rotation_EQJ_ECL } from 'astronomy-engin
 import { apophisGeocentricPosition } from '../lib/astronomy/apophis';
 import { dateToSimulationDays } from '../lib/astronomy/time';
 import { findBody } from '../lib/solar-data';
-import { createApophisSceneMapper, usesFixedApophisFlybyPath } from '../lib/solar-system/apophis-path';
+import { APOPHIS_PATH_POINT_COUNT, createApophisSceneMapper, usesFixedApophisFlybyPath } from '../lib/solar-system/apophis-path';
 import { apophisEncounterBodyRadius } from '../lib/solar-system/apophis-display';
 import { KILOMETERS_PER_AU, SCENE_AU, bodyRadius, initialOrbitalPhase, orbitalAngle, orbitalPosition } from '../lib/solar-system/orbit-math';
 
@@ -88,10 +88,29 @@ describe('Apophis 2029 Earth flyby', () => {
       const separation = position.distanceTo(earthPosition);
       expect(separation * KILOMETERS_PER_AU / SCENE_AU).toBeGreaterThan(37_000);
       expect(separation * KILOMETERS_PER_AU / SCENE_AU).toBeLessThan(39_000);
-      const attribute = new THREE.Float32BufferAttribute(257 * 3, 3);
+      const attribute = new THREE.Float32BufferAttribute(APOPHIS_PATH_POINT_COUNT * 3, 3);
       mapper.writePath(closest, realScale, attribute);
-      const pathCenter = new THREE.Vector3().fromBufferAttribute(attribute, 128);
+      const pathCenter = new THREE.Vector3().fromBufferAttribute(attribute, (attribute.count - 1) / 2);
       expect(pathCenter.distanceTo(position)).toBeLessThan(1e-5);
+    }
+  });
+
+  it('keeps the path precise at physical asteroid size and stationary across scale toggles', () => {
+    const mapper = createApophisSceneMapper();
+    const radius = bodyRadius(findBody('Apophis'), true);
+    for (const date of [closest, new Date('2026-09-27T18:45:00Z')]) {
+      const actual = new THREE.Vector3();
+      mapper.positionAt(date, earthAt(date), actual);
+      const attribute = new THREE.Float32BufferAttribute(APOPHIS_PATH_POINT_COUNT * 3, 3);
+      const origin = new THREE.Vector3();
+      mapper.writePath(date, false, attribute, origin);
+      const worldCenter = new THREE.Vector3().fromBufferAttribute(attribute, (attribute.count - 1) / 2).add(origin);
+      expect(worldCenter.distanceTo(actual)).toBeLessThan(radius * 0.001);
+      const before = Array.from(attribute.array);
+      const beforeOrigin = origin.clone();
+      mapper.writePath(date, true, attribute, origin);
+      expect(Array.from(attribute.array)).toEqual(before);
+      expect(origin.equals(beforeOrigin)).toBe(true);
     }
   });
 
@@ -101,7 +120,7 @@ describe('Apophis 2029 Earth flyby', () => {
     expect(usesFixedApophisFlybyPath(firstDate)).toBe(true);
     expect(usesFixedApophisFlybyPath(secondDate)).toBe(true);
     const mapper = createApophisSceneMapper();
-    const path = new THREE.Float32BufferAttribute(257 * 3, 3);
+    const path = new THREE.Float32BufferAttribute(APOPHIS_PATH_POINT_COUNT * 3, 3);
     mapper.writePath(firstDate, false, path);
     const initialPath = Array.from(path.array);
     mapper.writePath(secondDate, false, path);
@@ -127,6 +146,26 @@ describe('Apophis 2029 Earth flyby', () => {
         pathError = Math.min(pathError, nearest.distanceTo(position));
       }
       expect(pathError).toBeLessThan(0.02);
+    }
+  });
+
+  it('draws the dated trajectory without large polygon corners', () => {
+    const mapper = createApophisSceneMapper();
+    const path = new THREE.Float32BufferAttribute(APOPHIS_PATH_POINT_COUNT * 3, 3);
+    const previous = new THREE.Vector3(), point = new THREE.Vector3(), next = new THREE.Vector3();
+    const incoming = new THREE.Vector3(), outgoing = new THREE.Vector3();
+    for (const date of [closest, new Date('2028-09-01T00:00:00Z')]) {
+      mapper.writePath(date, false, path, new THREE.Vector3());
+      let largestTurn = 0;
+      for (let index = 1; index < path.count - 1; index++) {
+        previous.fromBufferAttribute(path, index - 1);
+        point.fromBufferAttribute(path, index);
+        next.fromBufferAttribute(path, index + 1);
+        largestTurn = Math.max(largestTurn, incoming.subVectors(point, previous).angleTo(outgoing.subVectors(next, point)));
+      }
+      // Old flyby segments produced corners over 13 degrees; half a degree
+      // bounds visible faceting while retaining only actual ephemeris samples.
+      expect(largestTurn * 180 / Math.PI).toBeLessThan(0.5);
     }
   });
 

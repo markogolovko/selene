@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { calculateFocusCameraPlan } from '../lib/solar-system/camera-controller';
+import * as THREE from 'three';
+import type { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { findBody } from '../lib/solar-data';
+import type { BodyScene, SceneBody } from '../lib/solar-system/body-scene';
+import { apophisEncounterBodyRadius } from '../lib/solar-system/apophis-display';
+import { calculateFocusCameraPlan, createFocusCameraController } from '../lib/solar-system/camera-controller';
 
 describe('focus camera planning', () => {
   it('keeps closer distances and computes desktop/mobile overview plans', () => {
@@ -32,5 +37,32 @@ describe('focus camera planning', () => {
     expect(plan.near).toBeLessThan(input.radius);
     expect(plan.minDistance).toBeCloseTo(input.radius * 1.8);
     expect(calculateFocusCameraPlan({ ...input, currentDistance: 0.0005 }).distance).toBe(0.0005);
+  });
+  it('keeps the Apophis camera view and following through scale toggles', () => {
+    const earth = { body: findBody('Earth'), group: new THREE.Group() } as SceneBody;
+    const moon = { body: findBody('Moon'), group: new THREE.Group() } as SceneBody;
+    const apophis = { body: findBody('Apophis'), group: new THREE.Group() } as SceneBody;
+    earth.group.position.set(14, 0, 0);
+    apophis.group.position.set(14.00356, 0, 0);
+    const bodyScene = { earth, moon, objectByName: new Map([earth, moon, apophis].map(item => [item.body.name, item])) } as BodyScene;
+    const camera = new THREE.PerspectiveCamera();
+    const viewOffset = new THREE.Vector3(0.006, 0.003, -0.012);
+    camera.position.copy(apophis.group.position).add(viewOffset);
+    const controls = { target: apophis.group.position.clone(), minDistance: 0 } as OrbitControls;
+    let realScale = false;
+    const controller = createFocusCameraController({ camera, controls, bodyScene, home: new THREE.Vector3(0, 64, 89), origin: new THREE.Vector3(), isRealScale: () => realScale, width: () => 1280, radiusFor: name => apophisEncounterBodyRadius(findBody(name), 0.00356, realScale) });
+    const before = camera.position.clone();
+    for (const scale of [true, false]) {
+      realScale = scale;
+      controller.focus('Apophis', true);
+      controller.update(apophis.group.position, 0.016, performance.now() + 2000);
+      expect(camera.position.equals(before)).toBe(true);
+      expect(controls.target.equals(apophis.group.position)).toBe(true);
+      expect(camera.near).toBeCloseTo(viewOffset.length() * 0.001);
+      expect(controls.minDistance).toBeLessThan(viewOffset.length());
+    }
+    apophis.group.position.add(new THREE.Vector3(0.001, -0.002, 0.003));
+    controller.update(apophis.group.position, 0.016, performance.now() + 2000);
+    expect(camera.position.clone().sub(controls.target).distanceTo(viewOffset)).toBeLessThan(1e-12);
   });
 });

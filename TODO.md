@@ -13,7 +13,7 @@
 - [x] On eclipses time set, use some time offset to see start of eclipse
 - [x] Add planet size, mass, circumference
 - [x] When select solar eclipse, pick place with full eclipse
-- [ ] Add possibility to move time backwards
+- [x] Add possibility to move time backwards
 - [ ] check orbits of other planets and moons
 - [x] Add Pluto, Eris and Ceres and other dwarf planets
 - [x] Refactor code

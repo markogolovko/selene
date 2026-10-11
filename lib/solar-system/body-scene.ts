@@ -1,13 +1,15 @@
 import * as THREE from 'three';
 import type { Body as AstronomyBody } from 'astronomy-engine';
 import { bodies, type BodyName, type SolarBody, isSatellite } from '../solar-data';
-import { bodyRadius, initialOrbitalPhase, orbitalAngle, orbitalPosition, orbitRadius } from './orbit-math';
+import { bodyRadius, initialOrbitalPhase, orbitalAngle, orbitalPosition, orbitPathPointCount, orbitRadius } from './orbit-math';
 import { createEarthGrid, createEarthLandmarks } from './earth-overlays';
 import { loadSrgbTexture, type ResourceRegistry } from './resources';
 import type { EarthObserver, LandmarkSelection } from './types';
 import { lunarEclipseStrength, type LunarCoordinates } from '../astronomy/moon';
 import { apophisEncounterBodyRadius, apophisEncounterDisplayBlend } from './apophis-display';
 import { moonDisplayDistance } from './moon-orbit';
+import { APOPHIS_PATH_POINT_COUNT } from './apophis-path';
+import { orbitPathNeedsRebase, writeKeplerOrbitPath } from './orbit-path';
 
 export type SceneBody = { body: SolarBody; group: THREE.Group; mesh: THREE.Mesh; ring: THREE.Mesh | null; label: HTMLButtonElement; phase: number };
 export type BodyScene = {
@@ -23,6 +25,7 @@ export type BodyScene = {
   earthGridLine: THREE.LineSegments;
   earthLandmarkMeshes: THREE.Mesh[];
   refreshOrbitLines: () => void;
+  rebaseFocusedOrbitLine: (name: BodyName | null) => void;
 };
 export type LunarShadowUniforms = {
   uEarthPosition: { value: THREE.Vector3 };
@@ -138,7 +141,7 @@ export function createBodyScene(options: {
     if (!body.distance) return [];
     const parent = isSatellite(body) ? objectByName.get(body.parent)?.group : paths;
     const apophisPath = body.name === 'Apophis';
-    const count = apophisPath ? 257 : 256;
+    const count = apophisPath ? APOPHIS_PATH_POINT_COUNT : orbitPathPointCount(body);
     const points = Array.from({ length: count }, (_, i) => orbitalPosition(body, i / (apophisPath ? count - 1 : count) * Math.PI * 2, realScale()));
     const orbitGeometry = resources.geometry(new THREE.BufferGeometry().setFromPoints(points));
     const orbitMaterial = resources.material(new THREE.LineBasicMaterial({ color: 0x75829c, transparent: true, opacity: 0.23 }));
@@ -162,13 +165,21 @@ export function createBodyScene(options: {
     earthGridLine: earthGridLine!, earthLandmarkMeshes,
     refreshOrbitLines() {
       orbitLines.forEach(({ body, line }) => {
+        // The ephemeris path owns its local origin and also handles fallback dates.
+        if (body.name === 'Apophis') return;
         const attribute = line.geometry.getAttribute('position') as THREE.BufferAttribute;
-        for (let i = 0; i < attribute.count; i++) {
-          const point = orbitalPosition(body, i / (body.name === 'Apophis' ? attribute.count - 1 : attribute.count) * Math.PI * 2, realScale());
-          attribute.setXYZ(i, point.x, point.y, point.z);
-        }
-        attribute.needsUpdate = true; line.geometry.computeBoundingSphere();
+        writeKeplerOrbitPath(body, realScale(), attribute, line.position);
+        line.geometry.computeBoundingSphere();
       });
+    },
+    rebaseFocusedOrbitLine(name) {
+      const focused = name && objectByName.get(name);
+      if (!focused || isSatellite(focused.body) || focused.body.name === 'Apophis' || !focused.body.distance) return;
+      const orbit = orbitLines.find(({ body }) => body.name === name)?.line;
+      if (!orbit || !orbitPathNeedsRebase(focused.body, orbit.position, focused.group.position)) return;
+      orbit.position.copy(focused.group.position);
+      writeKeplerOrbitPath(focused.body, realScale(), orbit.geometry.getAttribute('position') as THREE.BufferAttribute, orbit.position);
+      orbit.geometry.computeBoundingSphere();
     },
   };
 }

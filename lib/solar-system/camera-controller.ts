@@ -21,7 +21,7 @@ export function calculateFocusCameraPlan(input: { selected: boolean; realScale: 
 }
 
 export type FocusCameraController = {
-  focus: (name: BodyName | null) => void;
+  focus: (name: BodyName | null, preserveView?: boolean) => void;
   update: (target: THREE.Vector3 | null, elapsed: number, now: number) => void;
   cancel: () => void;
 };
@@ -47,7 +47,7 @@ export function createFocusCameraController(options: {
   let transitionThreshold = 0.03;
   let focusedName: BodyName | null = null;
 
-  function focus(name: BodyName | null) {
+  function focus(name: BodyName | null, preserveView = false) {
     focusedName = name;
     const item = name ? bodyScene.objectByName.get(name) : undefined;
     const radius = item ? radiusFor(item.body.name) : 0;
@@ -63,6 +63,15 @@ export function createFocusCameraController(options: {
     camera.updateProjectionMatrix();
     transitionThreshold = plan.transitionThreshold;
     controls.minDistance = plan.minDistance;
+    if (preserveView) {
+      // Changing display scale should keep the user's orbit view and zoom.
+      const target = item ? item.group.position : origin;
+      camera.position.add(delta.copy(target).sub(controls.target));
+      controls.target.copy(target);
+      lastTarget.copy(target);
+      transition = false;
+      return;
+    }
     offset.set(...plan.offset);
     transition = true;
     transitionStartedAt = performance.now();
@@ -70,10 +79,13 @@ export function createFocusCameraController(options: {
   }
 
   function update(target: THREE.Vector3 | null, elapsed: number, now: number) {
-    if (!isRealScale() && (focusedName === 'Earth' || focusedName === 'Moon' || focusedName === 'Apophis')) {
+    if (focusedName === 'Apophis' || (!isRealScale() && (focusedName === 'Earth' || focusedName === 'Moon'))) {
       const item = bodyScene.objectByName.get(focusedName)!;
       const radius = radiusFor(focusedName);
-      const near = radius < item.body.radius ? Math.max(radius * 0.08, 0.000000001) : 0.1;
+      // A physical asteroid needs a tiny near plane only when viewed close up.
+      // At encounter/overview zoom, retain enough depth precision for Earth.
+      const viewNear = focusedName === 'Apophis' ? camera.position.distanceTo(controls.target) * 0.001 : 0;
+      const near = isRealScale() || radius < item.body.radius ? Math.max(radius * 0.08, viewNear, 0.000000001) : 0.1;
       if (camera.near !== near) { camera.near = near; camera.updateProjectionMatrix(); }
       controls.minDistance = Math.max(radius * 1.8, near * 2.5);
     }
