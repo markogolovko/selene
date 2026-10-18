@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { flushSync } from 'react-dom';
-import { ArrowUpRight, Orbit } from 'lucide-react';
+import { ArrowUpRight, Eye, EyeOff, Orbit } from 'lucide-react';
 import { EclipseObserverPanel } from '@/components/eclipse-observer-panel';
 import { ObjectBrowser } from '@/components/solar-system/object-browser';
 import { BodyDetails } from '@/components/solar-system/body-details';
@@ -32,6 +32,7 @@ export default function Home() {
   const [observerFreeLook, setObserverFreeLook] = useState(false);
   const [observerLocation, setObserverLocation] = useState<ObserverLocation>(DEFAULT_OBSERVER);
   const [observerTarget, setObserverTarget] = useState<SkyTarget>('Sun');
+  const [mobileUiHidden, setMobileUiHidden] = useState(false);
   const [error, setError] = useState('');
   const [ready, setReady] = useState(false);
   const speed = SPEED_STOPS[speedIndex].daysPerSecond * (reverseTime ? -1 : 1);
@@ -152,8 +153,18 @@ export default function Home() {
   const displayedObserverStatus = skyObservation(simulationNow, observerLocation, observerTarget);
 
   return (
-    <main className={`observatory ${observerActive ? 'eclipse-observer-active' : ''}`}>
+    <main className={`observatory ${observerActive ? 'eclipse-observer-active' : ''} ${mobileUiHidden ? 'mobile-ui-hidden' : ''}`}>
       <div className="space-viewport" ref={host} />
+      <button
+        className="mobile-interface-toggle"
+        type="button"
+        aria-label={mobileUiHidden ? 'Show interface' : 'Hide interface'}
+        aria-pressed={mobileUiHidden}
+        title={mobileUiHidden ? 'Show interface' : 'Hide interface'}
+        onClick={() => setMobileUiHidden((hidden) => !hidden)}
+      >
+        {mobileUiHidden ? <><Eye size={16} /><span>Show UI</span></> : <><EyeOff size={16} /><span>Hide UI</span></>}
+      </button>
       {selectedLandmark && <dialog open className="landmark-popover" style={{ left: selectedLandmark.x, top: selectedLandmark.y }} aria-label={`${selectedLandmark.landmark.name} landmark details`}>
         <button className="landmark-close" onClick={() => setSelectedLandmark(null)} aria-label="Close landmark details">×</button>
         <span>EARTH LANDMARK</span>
