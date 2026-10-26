@@ -20,7 +20,7 @@
 - [ ] Add moon shadow on Earth
 - [ ] Add gravitational field visualization
 - [x] Add day and night from view from Earth 
-- [ ] Add Apophis, with its model and shape, fix text ticking to border of panel in calendar event
+- [x] Add Apophis, with its model and shape, fix text ticking to border of panel in calendar event, make date clickable in apophis description
 - [ ] Check planes of orbit for all planets and moons
 - [ ] Add place to add comments with new features requests and bugs
 - [ ] Refactor css

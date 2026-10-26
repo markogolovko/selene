@@ -17,6 +17,16 @@ export function eventPlaybackDate(event: AstronomyEvent): Date {
   return event.observation?.date ?? event.playbackDate ?? event.date;
 }
 
+export function apophisFlybyEvent(): AstronomyEvent {
+  const date = new Date('2029-04-13T21:46:00Z');
+  return {
+    date,
+    kind: 'asteroid-flyby',
+    label: 'Apophis Earth flyby',
+    playbackDate: new Date(date.getTime() - 6 * 60 * MINUTE_MS),
+  };
+}
+
 export function sameLocalDay(first: Date, second: Date): boolean {
   return first.getFullYear() === second.getFullYear() && first.getMonth() === second.getMonth() && first.getDate() === second.getDate();
 }
@@ -65,11 +75,8 @@ export function eventsForYear(year: number): AstronomyEvent[] {
   ];
   // Closest approach from JPL; six hours is a viewing lead-in, not a physical contact time.
   // https://ssd-api.jpl.nasa.gov/cad.api?des=99942&date-min=2029-04-13&date-max=2029-04-14
-  const apophisClosest = new Date('2029-04-13T21:46:00Z');
-  if (apophisClosest.getFullYear() === year) events.push({
-    date: apophisClosest, kind: 'asteroid-flyby', label: 'Apophis Earth flyby',
-    playbackDate: new Date(apophisClosest.getTime() - 6 * 60 * MINUTE_MS),
-  });
+  const apophisFlyby = apophisFlybyEvent();
+  if (apophisFlyby.date.getFullYear() === year) events.push(apophisFlyby);
   const searchStart = new Date(Date.UTC(year, 0, 1) - DAY_MS);
   const searchEnd = new Date(Date.UTC(year + 1, 0, 1) + DAY_MS);
   let solar = SearchGlobalSolarEclipse(searchStart);

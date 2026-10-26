@@ -9,8 +9,8 @@ import { apophisGeocentricPosition } from '@/lib/astronomy/apophis';
 import { KILOMETERS_PER_AU } from '@/lib/solar-system/orbit-math';
 import { apophisVisibleAtScale } from '@/lib/solar-system/apophis-display';
 
-export type BodyDetailsProps = { selected: BodyName | null; simulationNow: Date; realScale: boolean; moonPhase: { name: string; illumination: number }; eclipse: { type: string; detail: string } | null; observerActive: boolean; onViewSky: () => void; onFocus: (name: BodyName | null) => void };
-export function BodyDetails({ selected, simulationNow, realScale, moonPhase, eclipse, observerActive, onViewSky, onFocus }: BodyDetailsProps) {
+export type BodyDetailsProps = { selected: BodyName | null; simulationNow: Date; realScale: boolean; moonPhase: { name: string; illumination: number }; eclipse: { type: string; detail: string } | null; observerActive: boolean; onViewSky: () => void; onViewApophisFlyby: () => void; onFocus: (name: BodyName | null) => void };
+export function BodyDetails({ selected, simulationNow, realScale, moonPhase, eclipse, observerActive, onViewSky, onViewApophisFlyby, onFocus }: BodyDetailsProps) {
   const body = selected ? bodies.find((item) => item.name === selected) : null;
   const earthDistance = useMemo(() => {
     if (selected !== 'Apophis') return null;
@@ -18,9 +18,11 @@ export function BodyDetails({ selected, simulationNow, realScale, moonPhase, ecl
     return apophisGeocentricPosition(simulationNow, position) ? position.length() * KILOMETERS_PER_AU : null;
   }, [selected, simulationNow]);
   const hiddenAtDisplayScale = selected === 'Apophis' && !apophisVisibleAtScale(realScale);
+  const dateLabel = 'April 13, 2029';
+  const descriptionParts = body?.name === 'Apophis' ? body.description.split(dateLabel) : null;
   return <aside className="detail-panel" aria-live="polite">
     <p className="eyebrow">{body ? body.kind : 'THE BIG PICTURE'}</p><h2>{body ? body.name : 'A little perspective.'}</h2>
-    <p>{body ? body.description : 'Follow an orbit, find your home, or drift a little farther out. Select any world to take a closer look.'}</p>
+    <p>{descriptionParts ? <>{descriptionParts[0]}<button className="description-link" type="button" onClick={onViewApophisFlyby} aria-label="Watch the Apophis flyby on April 13, 2029">{dateLabel}</button>{descriptionParts[1]}</> : body ? body.description : 'Follow an orbit, find your home, or drift a little farther out. Select any world to take a closer look.'}</p>
     {hiddenAtDisplayScale && <div className="encounter-note"><strong>Hidden at display scale</strong><span>Turn on True scale, then recenter Apophis to inspect its physical size and flyby path.</span></div>}
     {body && <dl className="detail-facts">
       {earthDistance !== null && <div><dt title="Distance between the centers of Earth and Apophis">Earth distance</dt><dd>{formatKilometers(earthDistance)}</dd></div>}

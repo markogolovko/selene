@@ -85,19 +85,6 @@ export function createFocusCameraController(options: {
   }
 
   function update(target: THREE.Vector3 | null, elapsed: number, now: number) {
-    if (focusedName === 'Apophis' || (!isRealScale() && (focusedName === 'Earth' || focusedName === 'Moon'))) {
-      const item = bodyScene.objectByName.get(focusedName)!;
-      const radius = radiusFor(focusedName);
-      // A physical asteroid needs a tiny near plane only when viewed close up.
-      // At encounter/overview zoom, retain enough depth precision for Earth.
-      const viewNear = focusedName === 'Apophis' ? camera.position.distanceTo(controls.target) * 0.001 : 0;
-      const near = isRealScale() || radius < item.body.radius ? Math.max(radius * 0.08, viewNear, 0.000000001) : 0.1;
-      if (camera.near !== near) { camera.near = near; camera.updateProjectionMatrix(); }
-      const minimumDistance = Math.max(radius * 1.8, near * 2.5);
-      controls.minDistance = preservedMinimumDistance === null
-        ? minimumDistance
-        : Math.min(minimumDistance, preservedMinimumDistance);
-    }
     desired.copy(target ?? origin);
     if (transition) {
       const factor = 1 - Math.exp(-elapsed * 5);
@@ -114,6 +101,20 @@ export function createFocusCameraController(options: {
       controls.target.copy(desired);
     }
     lastTarget.copy(desired);
+
+    if (focusedName === 'Apophis' || (!isRealScale() && (focusedName === 'Earth' || focusedName === 'Moon'))) {
+      const item = bodyScene.objectByName.get(focusedName)!;
+      const radius = radiusFor(focusedName);
+      // Recompute clipping and minimum distance after camera transitions move it.
+      // Otherwise OrbitControls can apply the previous overview distance on the arrival frame.
+      const viewNear = focusedName === 'Apophis' ? camera.position.distanceTo(controls.target) * 0.001 : 0;
+      const near = isRealScale() || radius < item.body.radius ? Math.max(radius * 0.08, viewNear, 0.000000001) : 0.1;
+      if (camera.near !== near) { camera.near = near; camera.updateProjectionMatrix(); }
+      const minimumDistance = Math.max(radius * 1.8, near * 2.5);
+      controls.minDistance = preservedMinimumDistance === null
+        ? minimumDistance
+        : Math.min(minimumDistance, preservedMinimumDistance);
+    }
   }
   const cancel = () => { transition = false; };
   return { focus, update, cancel };

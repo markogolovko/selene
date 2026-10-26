@@ -8,6 +8,7 @@ import type { EarthObserver, LandmarkSelection } from './types';
 import { lunarEclipseStrength, type LunarCoordinates } from '../astronomy/moon';
 import { apophisVisibleAtScale } from './apophis-display';
 import { APOPHIS_PATH_POINT_COUNT } from './apophis-path';
+import { createApophisGeometry, createApophisTexture } from './apophis-surface';
 import { orbitPathNeedsRebase, writeKeplerOrbitPath } from './orbit-path';
 
 export type SceneBody = { body: SolarBody; group: THREE.Group; mesh: THREE.Mesh; ring: THREE.Mesh | null; label: HTMLButtonElement; phase: number };
@@ -60,12 +61,19 @@ export function createBodyScene(options: {
   const paths = new THREE.Group();
   scene.add(paths);
   const geometry = resources.geometry(new THREE.SphereGeometry(1, 64, 40));
-  const asteroidGeometry = resources.geometry(new THREE.IcosahedronGeometry(1, 2));
+  const asteroidGeometry = resources.geometry(createApophisGeometry());
+  const asteroidTexture = createApophisTexture(renderer, resources);
   const earthLandmarkMeshes: THREE.Mesh[] = [];
   let earthGridLine: THREE.LineSegments | undefined;
 
   const objects = bodies.map((body, index): SceneBody => {
     const material = new THREE.MeshStandardMaterial({ color: body.color, roughness: 0.95 });
+    if (body.name === 'Apophis') {
+      material.map = asteroidTexture;
+      material.color.set('white');
+      material.emissive.set('#32281d');
+      material.emissiveIntensity = 0.35;
+    }
     const texturePath = surfaceTexturePaths[body.name];
     if (texturePath) {
       material.map = texture(texturePath);
@@ -250,7 +258,9 @@ export function updateBodyLabels(bodyScene: BodyScene, frame: {
   const { camera, observerMarkers, earthObserver, selectedSystem, labels, realScale, width, height } = frame;
   bodyScene.objects.forEach(({ body, group, mesh, label }) => {
     const radius = mesh.scale.x;
-    const labelOffset = realScale ? radius * 0.25 : 0.55 * radius / body.radius;
+    const labelOffset = realScale
+      ? radius * (body.name === 'Apophis' ? 2 : 0.25)
+      : 0.55 * radius / body.radius;
     const observerMarker = observerMarkers.get(body.name);
     const projected = bodyScene.projected.copy(observerMarker?.visible ? observerMarker.position : group.position);
     if (!earthObserver) projected.y += radius + labelOffset;
